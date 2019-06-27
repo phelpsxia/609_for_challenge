@@ -1,0 +1,114 @@
+import numpy as np 
+import pandas as pd 
+import matplotlib.pyplot as plt
+import seaborn as sns
+import lightgbm as lgb
+import xgboost as xgb
+from sklearn.model_selection import KFold, StratifiedKFold
+from sklearn.metrics import accuracy_score, roc_auc_score
+from scipy.stats import norm, rankdata
+import warnings
+import gc
+import os
+import time
+import sys
+import datetime
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import mean_squared_error
+from sklearn import metrics
+from sklearn.model_selection import GridSearchCV
+import xgboost as xgb
+from sklearn.decomposition import PCA
+from sklearn import feature_selection
+from sklearn.model_selection import cross_val_score
+import matplotlib.pyplot as plt
+
+np.set_printoptions(threshold=np.inf)
+pd.set_option('display.max_columns', None)
+#显示所有行
+pd.set_option('display.max_rows', None)
+#设置value的显示长度为100，默认为50
+pd.set_option('max_colwidth',500)
+train_data=pd.read_csv('/home/kesci/input/round11379/train_round_1.csv')
+test_data=pd.read_csv('/home/kesci/input/round11379/test_round_1.csv')
+# print(train_data.describe())
+# print(train_data['favorite'])
+# for i,name in enumerate(columns_name):
+#     print(i,name)
+# print(test_data.columns.values)
+
+# print(train_data.columns.values)
+# train_data=train_data.dropna() 去除所有缺失值数据
+# def yichangzhichuli(dataset):
+#     for col in dataset.columns.tolist():
+#         Q1= np.percentile(dataset[col],25)
+#         Q3= np.percentile(dataset[col],75)
+#         IQR=Q3-Q1
+#         outlier_step=1.5*IQR
+#         for i in range(len(dataset[col])):
+#             if(dataset[col][i]>Q3+outlier_step or dataset[col][i]<Q1-outlier_step):
+            
+#                 dataset[col][i]=0
+#     return dataset            
+
+train_data.info()
+label_pur=train_data['purchase']
+label_fav=train_data['favorite']
+train_data=train_data.drop(['seller','user_id','Product_id','purchase','favorite'],axis=1)
+test_user_id=test_data['user_id']
+test_Product_id=test_data['Product_id']
+test_data=test_data.drop(['seller','user_id','Product_id'],axis=1)
+columns_name=train_data.columns.tolist()
+for col in columns_name:
+    train_data[col].fillna(train_data[col].std(),inplace=True)
+    test_data[col].fillna(test_data[col].std(),inplace=True)
+new_test_data=pd.DataFrame([])
+for name in columns_name:
+    new_test_data=pd.concat([new_test_data,test_data[name]],axis=1)
+
+
+
+model_pur=xgb.XGBClassifier(lrning_rate =0.01,
+n_estimators=100,
+max_depth=4,
+min_child_weight=6,
+gamma=0,
+subsample=0.8,
+colsample_bytree=0.8,
+reg_alpha=0.005,
+objective= 'binary:logistic',
+nthread=4,
+scale_pos_weight=1,
+seed=2)
+
+model_fav=xgb.XGBClassifier(lrning_rate =0.01,
+n_estimators=100,
+max_depth=4,
+min_child_weight=6,
+gamma=0,
+subsample=0.8,
+colsample_bytree=0.8,
+reg_alpha=0.005,
+objective= 'binary:logistic',
+nthread=4,
+scale_pos_weight=1,
+seed=2)
+score_pur=np.mean(cross_val_score(model_pur,train_data,label_pur,cv=5,scoring='roc_auc'))
+score_fav=np.mean(cross_val_score(model_fav,train_data,label_fav,cv=5,scoring='roc_auc'))
+print(score_pur)
+print(score_fav)
+print((score_pur+score_fav)/2)
+
+model_pur.fit(train_data,label_pur)
+model_fav.fit(train_data,label_fav)
+test_pur=model_pur.predict_proba(new_test_data)
+test_fav=model_fav.predict_proba(new_test_data)
+
+
+
+submit=pd.DataFrame([])
+submit['user_id']=test_user_id
+submit['product_id']=test_Product_id
+submit['pred_favorite']=test_fav[:,1]
+submit['pred_purchase']=test_pur[:,1]
